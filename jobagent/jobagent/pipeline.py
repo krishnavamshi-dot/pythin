@@ -1,6 +1,7 @@
 """Orchestrator: discovery -> dedup -> screening -> store -> digest."""
 import argparse
 import pathlib
+from datetime import datetime, timedelta, timezone
 import yaml
 
 from . import db, sources
@@ -14,21 +15,36 @@ def load(name):
     return yaml.safe_load(p.read_text()) if p.exists() else {}
 
 
-def run(jobs=None, db_path=None, log=print):
+TARGET_TOTAL, TARGET_STRONG, STRONG_SCORE = 40, 20, 80
+
+
+def run(jobs=None, db_path=None, log=print, max_age_hours=3):
     profile, roles, companies = load("profile.yaml"), load("roles.yaml"), load("companies.yaml")
     con = db.connect(db_path or str(ROOT / "jobs.db"))
     if jobs is None:
         jobs = sources.discover(roles, companies, log)
-    kept = dup = dropped = 0
+    kept = dup = dropped = stale = 0
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours) if max_age_hours else None
+    run_rows = []
     for j in jobs:
+        d = j.posted_dt
+        if cutoff and d is not None and d < cutoff:
+            stale += 1
+            continue
         if db.seen(con, j):
             dup += 1
             continue
         if screen(j, roles["roles"], profile):
-            j.status = "new"; db.save(con, j); kept += 1
+            j.status = "new"; db.save(con, j); kept += 1; run_rows.append(j)
         else:
             dropped += 1
-    log(f"[pipeline] {len(jobs)} fetched, {dup} duplicates, {dropped} screened out, {kept} new matches")
+    strong = sum(1 for j in run_rows if j.score >= STRONG_SCORE)
+    log(f"[pipeline] {len(jobs)} fetched, {stale} older than {max_age_hours}h, {dup} duplicates, "
+        f"{dropped} screened out, {kept} new matches")
+    log(f"[target] total {kept}/{TARGET_TOTAL} {'OK' if kept >= TARGET_TOTAL else 'SHORT'} | "
+        f"{STRONG_SCORE}+ score {strong}/{TARGET_STRONG} {'OK' if strong >= TARGET_STRONG else 'SHORT'}")
+    if kept < TARGET_TOTAL or strong < TARGET_STRONG:
+        log("[target] shortfall: add companies to config/companies.yaml or enable a job-search API source")
     return con
 
 
@@ -45,10 +61,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("command", choices=["run", "digest", "mark"])
     ap.add_argument("--key"); ap.add_argument("--status")
+    ap.add_argument("--hours", type=float, default=3, help="only postings newer than this (0 = no limit)")
     a = ap.parse_args()
     con = db.connect(str(ROOT / "jobs.db"))
     if a.command == "run":
-        con = run(); print(digest(con))
+        con = run(max_age_hours=a.hours); print(digest(con))
     elif a.command == "digest":
         print(digest(con))
     else:

@@ -33,3 +33,18 @@ def test_pipeline(tmp_path):
     assert "test:8" not in rows          # irrelevant
     assert "test:9" not in rows          # duplicate
     print(pipeline.digest(con))
+
+
+def test_freshness_and_target(tmp_path):
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc)
+    fresh = J(20, "Data Engineer", "Entry level SQL Python Spark Airflow ETL AWS")
+    fresh.posted = (now - timedelta(hours=1)).isoformat()
+    old = J(21, "Data Analyst", "Entry level SQL Tableau Excel dashboard")
+    old.posted = str(int((now - timedelta(hours=9)).timestamp() * 1000))  # epoch millis
+    logs = []
+    con = pipeline.run([fresh, old], str(tmp_path / "f.db"), log=logs.append, max_age_hours=3)
+    keys = {r["key"] for r in db.top(con, "new", 50)}
+    assert keys == {"test:20"}
+    assert any("older than 3h" in l and " 1 older" in l for l in logs)
+    assert any("SHORT" in l for l in logs)

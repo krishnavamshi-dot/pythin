@@ -1,0 +1,31 @@
+roles:
+  - name: Data Engineer
+    tier: primary
+    titles: [data engineer, analytics engineer, etl developer, bi engineer, big data engineer]
+    must_have: [sql, python]
+    nice_to_have: [spark, airflow, dbt, snowflake, redshift, bigquery, aws, azure, gcp, kafka, etl]
+    base_resume: resumes/data_engineer.md
+  - name: Business Analyst
+    tier: primary
+    titles: [business analyst, data analyst, bi analyst, reporting analyst, business intelligence analyst]
+    must_have: [sql]
+    nice_to_have: [tableau, power bi, excel, requirements, stakeholder, dashboard, kpi]
+    base_resume: resumes/analyst.md
+  - name: Data Scientist
+    tier: primary
+    titles: [data scientist, machine learning analyst, applied scientist, ml engineer]
+    must_have: [python]
+    nice_to_have: [statistics, scikit-learn, machine learning, sql, experimentation, a/b, pandas, tensorflow, pytorch]
+    base_resume: resumes/data_scientist.md
+  - name: Software Developer (Backend)
+    tier: secondary
+    titles: [python developer, java developer, backend engineer, backend developer, software engineer]
+    must_have: []
+    nice_to_have: [python, java, spring, flask, django, rest, api, sql, microservices]
+    base_resume: resumes/software.md
+  - name: Software Developer (Frontend)
+    tier: secondary
+    titles: [frontend developer, front end developer, ui developer, front-end engineer]
+    must_have: []
+    nice_to_have: [javascript, react, typescript, html, css, angular, vue]
+    base_resume: resumes/software.md

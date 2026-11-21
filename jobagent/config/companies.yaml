@@ -1,0 +1,4 @@
+# Companies whose public ATS boards the Discovery agent should watch.
+# Use the slug from their careers URL (boards.greenhouse.io/<slug>, jobs.lever.co/<slug>).
+greenhouse: []   # e.g. [airbnb, stripe, databricks]
+lever: []        # e.g. [palantir]

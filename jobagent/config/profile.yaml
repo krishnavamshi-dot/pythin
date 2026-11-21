@@ -1,0 +1,42 @@
+# Master profile: single source of truth for every agent.
+candidate:
+  education: "MS Business Analytics, University of the Cumberlands"
+  work_authorization: cpt        # currently on CPT
+  needs_sponsorship_future: true # assumed; edit if untrue
+  skills:                        # edit to match your real resume
+    - sql
+    - python
+    - tableau
+    - power bi
+    - excel
+    - statistics
+
+preferences:
+  locations: [usa, united states, remote]
+  remote_preference: strong      # boosts remote postings
+  employment_types:              # priority order, higher = better
+    full_time: 1.0
+    cpt: 0.6                     # CPT / internship / co-op roles
+  experience_levels: [entry, junior, associate, new grad, 0-2 years]
+  min_score: 45                  # postings below this are dropped
+  secondary_min_score: 60        # stricter bar for secondary roles
+
+# Phrases that auto-reject or boost, based on work authorization.
+authorization_rules:
+  reject_phrases:
+    - "no sponsorship"
+    - "without sponsorship"
+    - "will not sponsor"
+    - "unable to sponsor"
+    - "u.s. citizens only"
+    - "us citizens only"
+    - "citizenship required"
+    - "security clearance"
+    - "must be authorized to work without"
+  boost_phrases:
+    - "cpt"
+    - "opt"
+    - "f-1"
+    - "will sponsor"
+    - "visa sponsorship available"
+    - "sponsorship available"

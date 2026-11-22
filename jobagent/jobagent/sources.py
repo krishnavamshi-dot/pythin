@@ -84,6 +84,8 @@ def discover(role_cfg, company_cfg, log=print):
     queries = sorted({t for r in role_cfg["roles"] for t in r["titles"]})
     jobs = []
     plan = [("remotive", lambda: remotive(queries)), ("arbeitnow", lambda: arbeitnow(queries))]
+    if os.environ.get("APIFY_TOKEN"):
+        plan.append(("linkedin", lambda: linkedin(queries)))
     if company_cfg.get("greenhouse"):
         plan.append(("greenhouse", lambda: greenhouse(company_cfg["greenhouse"])))
     if company_cfg.get("lever"):
@@ -96,3 +98,57 @@ def discover(role_cfg, company_cfg, log=print):
         except Exception as e:  # one failing source must not stop the run
             log(f"[discovery] {name} FAILED: {type(e).__name__}: {e}")
     return jobs
+
+
+# ---- LinkedIn via the Apify actor curious_coder/linkedin-jobs-scraper -------------------------
+import os
+from datetime import datetime, timedelta, timezone
+
+_REL = re.compile(r"(\d+)\s*(minute|hour|day|week|month)s?\s+ago", re.I)
+_UNIT = {"minute": 1 / 60, "hour": 1, "day": 24, "week": 168, "month": 720}
+
+
+def relative_to_dt(text, now=None):
+    """'27 minutes ago' -> aware datetime. Returns None if unparseable."""
+    m = _REL.search(text or "")
+    if not m:
+        return None
+    now = now or datetime.now(timezone.utc)
+    return now - timedelta(hours=int(m.group(1)) * _UNIT[m.group(2).lower()])
+
+
+def linkedin_items_to_jobs(items, now=None):
+    out = []
+    for it in items:
+        if it.get("error") or not it.get("id"):
+            continue
+        desc = it.get("descriptionText") or ""
+        title = it.get("title", "")
+        et = _etype(title, desc)
+        if (it.get("employmentType") or "").lower().startswith("intern"):
+            et = "cpt"
+        loc = it.get("location", "")
+        dt = relative_to_dt(it.get("postedAtRelative"), now)
+        posted = dt.isoformat() if dt else (it.get("postedAt") or "")
+        remote = bool(re.search(r"\bremote\b", f"{title} {loc}", re.I))
+        out.append(Job("linkedin", str(it["id"]), title, it.get("companyName", ""), loc,
+                       (it.get("link") or "").split("?")[0], desc, remote, posted, et))
+    return out
+
+
+def linkedin(queries, location="United States", per_query=50, token=None):
+    """Runs the Apify actor through the REST API (needs APIFY_TOKEN and api.apify.com reachable)."""
+    token = token or os.environ.get("APIFY_TOKEN")
+    if not token:
+        raise RuntimeError("APIFY_TOKEN not set")
+    items = []
+    for q in queries:
+        r = requests.post(
+            "https://api.apify.com/v2/acts/curious_coder~linkedin-jobs-scraper/run-sync-get-dataset-items",
+            params={"token": token},
+            json={"keywords": q, "location": location, "datePosted": "past24Hours",
+                  "limitPerSource": per_query, "scrapeCompany": False},
+            timeout=300)
+        r.raise_for_status()
+        items += r.json()
+    return linkedin_items_to_jobs(items)

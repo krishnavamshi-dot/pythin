@@ -48,3 +48,19 @@ def test_freshness_and_target(tmp_path):
     assert keys == {"test:20"}
     assert any("older than 3h" in l and " 1 older" in l for l in logs)
     assert any("SHORT" in l for l in logs)
+
+
+def test_linkedin_adapter(tmp_path):
+    from jobagent import sources
+    items = [
+        {"id": "1", "title": "Data Engineer", "companyName": "Nextech", "location": "Queens, NY",
+         "postedAtRelative": "27 minutes ago", "employmentType": "Full-time",
+         "descriptionText": "Entry level. Python, SQL, Spark, Airflow ETL on AWS.", "link": "https://l/1?x=y"},
+        {"id": "2", "title": "Data Analyst", "companyName": "Deloitte", "location": "Arlington, VA",
+         "postedAtRelative": "14 hours ago", "employmentType": "Full-time",
+         "descriptionText": "Entry level SQL Tableau Excel dashboard", "link": "https://l/2"},
+    ]
+    jobs = sources.linkedin_items_to_jobs(items)
+    assert jobs[0].url == "https://l/1" and jobs[0].source == "linkedin"
+    con = pipeline.run(jobs, str(tmp_path / "l.db"), log=lambda *_: None, max_age_hours=3)
+    assert {r["key"] for r in db.top(con, "new", 10)} == {"linkedin:1"}  # 14h-old one is stale
